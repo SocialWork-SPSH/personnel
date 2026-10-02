@@ -201,11 +201,21 @@
     for (var c = 1; c <= 6; c++) { totalRow += '<td style="text-align:center">' + (counts[c - 1] || '') + '</td>'; }
     totalRow += '</tr>';
 
+    // เว้นขอบกระดาษเพิ่มจาก @page (10mm) อีกชั้นหนึ่งด้วย padding ของกล่องเอกสาร
+    // และย่อตาราง (กว้าง 90%, ตัวอักษรเล็กลง, กำหนดความกว้างคอลัมน์ตายตัว) เพื่อไม่ให้ตกขอบเครื่องพิมพ์
     var html =
-      '<div class="print-doc">' +
-      '<div style="text-align:center;font-weight:700;font-size:15px;">รายชื่อผู้ปฏิบัติงาน เดือน ' + d.monthName + ' ' + d.yearBE + '</div>' +
-      '<div style="text-align:center;margin-bottom:8px;">หน่วยงาน กลุ่มงานสังคมสงเคราะห์</div>' +
-      '<table><thead>' +
+      '<div class="print-doc" style="box-sizing:border-box;width:100%;padding:12mm 15mm 10mm 15mm;font-size:11px;">' +
+      '<div style="text-align:center;font-weight:700;font-size:14px;">รายชื่อผู้ปฏิบัติงาน เดือน ' + d.monthName + ' ' + d.yearBE + '</div>' +
+      '<div style="text-align:center;margin-bottom:10px;">หน่วยงาน กลุ่มงานสังคมสงเคราะห์</div>' +
+      '<table style="width:90%;margin:0 auto;table-layout:fixed;border-collapse:collapse;font-size:11px;">' +
+      '<colgroup>' +
+        '<col style="width:6%">' +              // ลำดับ
+        '<col style="width:14%"><col style="width:12%">' + // ชื่อ - นามสกุล (2 คอลัมน์)
+        '<col style="width:20%">' +             // ตำแหน่ง
+        '<col style="width:8%"><col style="width:8%"><col style="width:8%">' + // (1)-(3)
+        '<col style="width:8%"><col style="width:8%"><col style="width:8%">' + // (4)-(6)
+      '</colgroup>' +
+      '<thead>' +
       '<tr>' +
         '<th rowspan="3">ลำดับ</th>' +
         '<th colspan="2" rowspan="3">ชื่อ - นามสกุล</th>' +
