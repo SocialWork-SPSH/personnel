@@ -167,6 +167,15 @@
     var dayHeaders = '';
     activeDays.forEach(function(d) { dayHeaders += '<th>' + d + '</th>'; });
 
+    // สร้าง colgroup กำหนดความกว้างคอลัมน์เป็น % เพื่อไม่ให้ตารางล้นหน้ากระดาษเวลาพิมพ์ (จำนวนวันในเดือนมีได้ถึง 28-31 คอลัมน์)
+    var dayColWidthPct = activeDays.length > 0 ? (48 / activeDays.length) : 0;
+    var colgroupHtml = '<colgroup>' +
+      '<col style="width:16%">' +
+      '<col style="width:6%"><col style="width:6%"><col style="width:6%"><col style="width:6%">' +
+      activeDays.map(function() { return '<col style="width:' + dayColWidthPct.toFixed(2) + '%">'; }).join('') +
+      '<col style="width:6%"><col style="width:6%">' +
+      '</colgroup>';
+
     var leaveHtml = '';
     if (r.leaveDays && r.leaveDays.length > 0) {
       var leaveItems = r.leaveDays.map(function(l) { return 'วันที่ ' + l.day + ' (' + l.leaveType + ')'; }).join(', ');
@@ -174,11 +183,11 @@
     }
 
     var html =
-      '<div class="print-doc">' +
+      '<div class="print-doc report-grid">' +
       '<div style="text-align:center;font-weight:700;font-size:15px;">แบบบันทึกการจ่ายค่าตอบแทนตามผลการปฏิบัติงาน (รายบุคคล)</div>' +
       '<div style="text-align:center;">การปฏิบัติงานสังคมสงเคราะห์ กลุ่มงานสังคมสงเคราะห์ โรงพยาบาลสมเด็จพระสังฆราช (อมฺพรมหาเถร)</div>' +
       '<div style="text-align:center;margin-bottom:8px;">' + r.user.fullName + ' ประจำเดือน ' + r.monthName + ' พ.ศ. ' + r.yearBE + '</div>' +
-      '<table><thead><tr>' +
+      '<table>' + colgroupHtml + '<thead><tr>' +
       '<th rowspan="2">ภารกิจ</th><th rowspan="2">หน่วยนับ</th><th rowspan="2">เวลาเฉลี่ย</th><th rowspan="2">แต้ม/หน่วย</th><th rowspan="2">น้ำหนัก</th>' +
       '<th colspan="' + activeDays.length + '">วันที่ (เฉพาะวันที่มีการบันทึก)</th><th rowspan="2">รวม</th><th rowspan="2">แต้ม</th>' +
       '</tr><tr>' + dayHeaders + '</tr></thead><tbody>' + rowsHtml + '</tbody></table>' +
@@ -193,6 +202,6 @@
       '</div></div>';
 
     var safeName = (r.user.fullName || '').replace(/\s+/g, '');
-    openPrint(html, 'landscape', 'แบบบันทึกผลการปฏิบัติงาน_' + safeName + '_' + r.monthName + r.yearBE);
+    openPrint(html, 'landscape', 'แบบบันทึกผลการปฏิบัติงาน_' + safeName + '_' + r.monthName + r.yearBE, 12);
   }
 </script>
