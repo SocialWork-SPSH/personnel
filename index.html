@@ -49,12 +49,13 @@
       position: absolute; left: 0; top: 0; width: 100%;
     }
     .no-print { display: none !important; }
-    @page { size: A4 landscape; margin: 10mm; }
+    @page { size: A4 landscape; margin: 15mm; }
   }
-  .print-doc { font-size: 12px; }
-  .print-doc table { border-collapse: collapse; width: 100%; }
-  .print-doc th, .print-doc td { border: 1px solid #000; padding: 2px 4px; }
+  .print-doc { font-size: 12px; padding-top: 2mm; }
+  .print-doc table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+  .print-doc th, .print-doc td { border: 1px solid #000; padding: 2px 4px; word-break: break-word; }
   .print-doc th { background: #e2e8f0; }
+  .print-doc.report-grid { font-size: 8px; }
 </style>
 </head>
 <body class="min-h-screen">
@@ -292,8 +293,9 @@
     return groups;
   }
 
-  function openPrint(innerHtml, orientation, printTitle) {
+  function openPrint(innerHtml, orientation, printTitle, marginMm) {
     orientation = orientation || 'landscape';
+    marginMm = marginMm || 15;
     var area = document.getElementById('printArea');
     area.innerHTML = innerHtml;
     area.classList.remove('hidden');
@@ -304,7 +306,7 @@
       styleTag.id = 'dynamicPrintPageStyle';
       document.head.appendChild(styleTag);
     }
-    styleTag.textContent = '@page { size: A4 ' + orientation + '; margin: 10mm; }';
+    styleTag.textContent = '@page { size: A4 ' + orientation + '; margin: ' + marginMm + 'mm; }';
 
     var originalTitle = document.title;
     if (printTitle) document.title = printTitle;
