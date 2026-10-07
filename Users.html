@@ -16,7 +16,6 @@
           <th class="px-2 py-2 text-left">ชื่อ-นามสกุล</th>
           <th class="px-2 py-2">ตำแหน่ง</th>
           <th class="px-2 py-2">ระดับ</th>
-          <th class="px-2 py-2">เลขที่ใบประกอบวิชาชีพ</th>
           <th class="px-2 py-2">สิทธิ์การใช้งาน</th>
           <th class="px-2 py-2">แต้มประกันขั้นต่ำ</th>
           <th class="px-2 py-2">สถานะ</th>
@@ -52,11 +51,13 @@
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="text-xs text-slate-500">ระดับ</label>
-            <input id="userLevel" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1" placeholder="เช่น ชำนาญการ">
+            <select id="userLevel" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1">
+              <option value="">— ไม่ระบุ —</option>
+            </select>
           </div>
           <div>
-            <label class="text-xs text-slate-500">เลขที่ใบประกอบวิชาชีพ</label>
-            <input id="userLicenseNo" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1">
+            <label class="text-xs text-slate-500">วันลาพักผ่อนสะสม (ยกมา)</label>
+            <input id="userVacationDaysCarried" type="number" step="1" min="0" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1" value="0" placeholder="วันทำการ">
           </div>
         </div>
         <div class="grid grid-cols-2 gap-3">
@@ -73,17 +74,6 @@
             <input id="userMinPoints" type="number" step="0.01" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1" value="1200">
           </div>
         </div>
-        <div>
-          <label class="text-xs text-slate-500">หมวดวิชาชีพ (สำหรับแบบฟอร์มรายชื่อผู้ปฏิบัติงาน P4P ที่ส่งฝ่าย HR)</label>
-          <select id="userProfCategory" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1">
-            <option value="1">(1) วิชาชีพ</option>
-            <option value="2">(2) วิชาชีพอื่น (ป.ตรี)</option>
-            <option value="3">(3) วิชาชีพอื่น (ต่ำกว่า ป.ตรี)</option>
-            <option value="4">(4) Back (ป.ตรี)</option>
-            <option value="5">(5) Back (ต่ำกว่า ป.ตรี)</option>
-            <option value="6">(6) อื่น ๆ</option>
-          </select>
-        </div>
         <label class="flex items-center gap-2 text-sm text-slate-600">
           <input type="checkbox" id="userActive" checked> เปิดใช้งานบัญชีนี้
         </label>
@@ -99,12 +89,34 @@
 
 <script>
   var _usersCache = [];
+  var _levelTypes = ['ปฏิบัติการ', 'ชำนาญการ', 'ชำนาญการพิเศษ', 'เชี่ยวชาญ']; // ค่าเริ่มต้น เผื่อเรียกเซิร์ฟเวอร์ไม่สำเร็จ
 
   function initUsersPage() {
     document.getElementById('btnAddUser').addEventListener('click', function() { openUserModal('add'); });
     document.getElementById('btnCancelUser').addEventListener('click', closeUserModal);
     document.getElementById('btnSaveUser').addEventListener('click', saveUserModal);
+    loadLevelTypes();
     loadUsers();
+  }
+
+  function loadLevelTypes() {
+    callServer('getLevelTypes').then(function(list) {
+      if (list && list.length) _levelTypes = list;
+      renderLevelOptions();
+    }).catch(function() { renderLevelOptions(); });
+  }
+
+  function renderLevelOptions() {
+    var sel = document.getElementById('userLevel');
+    var current = sel.value;
+    sel.innerHTML = '<option value="">— ไม่ระบุ —</option>';
+    _levelTypes.forEach(function(lv) {
+      var opt = document.createElement('option');
+      opt.value = lv;
+      opt.textContent = lv;
+      sel.appendChild(opt);
+    });
+    sel.value = current || '';
   }
 
   function loadUsers() {
@@ -127,8 +139,7 @@
         '<td class="px-2 py-2 text-center font-mono text-xs">' + u.username + '</td>' +
         '<td class="px-2 py-2">' + u.fullName + '</td>' +
         '<td class="px-2 py-2 text-center">' + (u.position || '') + '</td>' +
-        '<td class="px-2 py-2 text-center">' + (u.level || '-') + '</td>' +
-        '<td class="px-2 py-2 text-center">' + (u.licenseNo || '-') + '</td>' +
+        '<td class="px-2 py-2 text-center">' + (u.level || '') + '</td>' +
         '<td class="px-2 py-2 text-center">' + roleLabel + '</td>' +
         '<td class="px-2 py-2 text-center">' + numFmt(u.minGuaranteePoints, 2) + '</td>' +
         '<td class="px-2 py-2 text-center">' + (u.active ? '<span class="text-emerald-600">ใช้งาน</span>' : '<span class="text-slate-400">ระงับ</span>') + '</td>' +
@@ -161,10 +172,9 @@
       document.getElementById('userFullName').value = '';
       document.getElementById('userPosition').value = '';
       document.getElementById('userLevel').value = '';
-      document.getElementById('userLicenseNo').value = '';
+      document.getElementById('userVacationDaysCarried').value = 0;
       document.getElementById('userRole').value = 'staff';
       document.getElementById('userMinPoints').value = 1200;
-      document.getElementById('userProfCategory').value = '1';
       document.getElementById('userActive').checked = true;
     } else {
       var u = _usersCache.filter(function(x) { return x.username === username; })[0];
@@ -175,10 +185,9 @@
       document.getElementById('userFullName').value = u.fullName;
       document.getElementById('userPosition').value = u.position || '';
       document.getElementById('userLevel').value = u.level || '';
-      document.getElementById('userLicenseNo').value = u.licenseNo || '';
+      document.getElementById('userVacationDaysCarried').value = u.vacationDaysCarried || 0;
       document.getElementById('userRole').value = u.role;
       document.getElementById('userMinPoints').value = u.minGuaranteePoints;
-      document.getElementById('userProfCategory').value = String(u.professionalCategory || 1);
       document.getElementById('userActive').checked = u.active;
     }
   }
@@ -194,11 +203,10 @@
       password: document.getElementById('userPassword').value,
       fullName: document.getElementById('userFullName').value.trim(),
       position: document.getElementById('userPosition').value.trim(),
-      level: document.getElementById('userLevel').value.trim(),
-      licenseNo: document.getElementById('userLicenseNo').value.trim(),
+      level: document.getElementById('userLevel').value,
+      vacationDaysCarried: Number(document.getElementById('userVacationDaysCarried').value) || 0,
       role: document.getElementById('userRole').value,
       minGuaranteePoints: Number(document.getElementById('userMinPoints').value) || 0,
-      professionalCategory: Number(document.getElementById('userProfCategory').value) || 1,
       active: document.getElementById('userActive').checked
     };
     if (!payload.username || !payload.fullName) {
