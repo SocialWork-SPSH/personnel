@@ -28,7 +28,12 @@
     </div>
   </div>
 
-  <div class="bg-white rounded-xl shadow-sm p-4 overflow-x-auto">
+  <div id="finStatusBox" class="rounded-xl p-4 mb-4 border flex items-center justify-between flex-wrap gap-3 no-print">
+    <div class="text-sm" id="finStatusText">กำลังโหลดสถานะ...</div>
+    <div class="flex gap-2" id="finStatusActions"></div>
+  </div>
+
+  <div class="bg-white rounded-xl shadow-sm p-4 overflow-x-auto mb-4">
     <table class="w-full text-sm p4p-table">
       <thead>
         <tr>
@@ -46,6 +51,11 @@
       </thead>
       <tbody id="summaryTableBody"></tbody>
     </table>
+  </div>
+
+  <div class="bg-white rounded-xl shadow-sm p-4 no-print">
+    <h2 class="font-semibold text-slate-700 mb-3">📋 ประวัติการส่งฝ่ายการเงินย้อนหลัง 12 เดือน (ป้องกันการตกหล่น)</h2>
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2" id="finHistoryGrid"></div>
   </div>
 </div>
 </template>
@@ -70,6 +80,7 @@
     }
 
     loadSummary();
+    loadFinanceHistory();
   }
 
   function loadSummary() {
@@ -81,6 +92,7 @@
       showLoading(false);
       _lastSummary = summary;
       renderSummary(summary);
+      loadFinanceStatus();
     }).catch(function(err) {
       showLoading(false);
       fireError(err);
@@ -112,6 +124,106 @@
     });
   }
 
+  function loadFinanceStatus() {
+    var yearBE = document.getElementById('summaryYear').value;
+    var month = document.getElementById('summaryMonth').value;
+    callServer('getFinanceSubmissionStatus', APP.token, yearBE, month).then(function(st) {
+      renderFinanceStatus(st, yearBE, month);
+    }).catch(function(err) { fireError(err); });
+  }
+
+  function loadFinanceHistory() {
+    callServer('getFinanceSubmissionHistory', APP.token, 12).then(function(list) {
+      renderFinanceHistory(list);
+    }).catch(function(err) { fireError(err); });
+  }
+
+  function renderFinanceStatus(s, yearBE, month) {
+    var box = document.getElementById('finStatusBox');
+    var text = document.getElementById('finStatusText');
+    var actions = document.getElementById('finStatusActions');
+    var canManage = (APP.user.role === 'admin' || APP.user.role === 'head');
+    var base = 'rounded-xl p-4 mb-4 border flex items-center justify-between flex-wrap gap-3 no-print ';
+    var monthName = _lastSummary ? _lastSummary.monthName : month;
+    actions.innerHTML = '';
+
+    if (s.submitted) {
+      box.className = base + 'bg-emerald-50 border-emerald-200';
+      text.innerHTML = '✅ <b>ส่งฝ่ายการเงินแล้ว</b> — เดือน ' + monthName + ' พ.ศ. ' + yearBE +
+        ' (บันทึกโดย ' + (s.submittedBy || '-') + ' เมื่อ ' + formatDateTimeTH_(s.submittedAt) + ')' +
+        (s.budgetAtSubmit ? ' · จำนวนเงินที่จัดสรร ณ วันที่ส่ง ' + numFmt(s.budgetAtSubmit, 2) + ' บาท' : '');
+      if (_lastSummary && s.budgetAtSubmit && Number(_lastSummary.budget) !== Number(s.budgetAtSubmit)) {
+        text.innerHTML += '<div class="text-xs text-rose-600 mt-1">⚠️ จำนวนเงินที่จัดสรรปัจจุบัน (' + numFmt(_lastSummary.budget, 2) +
+          ' บาท) ต่างจากตอนที่ส่ง — หากส่งฉบับแก้ไขให้ยกเลิกการบันทึกแล้วบันทึกใหม่</div>';
+      }
+      if (canManage) {
+        var btnUn = document.createElement('button');
+        btnUn.className = 'bg-white border border-emerald-300 hover:bg-emerald-100 text-emerald-700 text-sm rounded-lg px-3 py-1.5';
+        btnUn.textContent = 'ยกเลิกการบันทึก';
+        btnUn.addEventListener('click', function() { toggleFinanceSubmission(false); });
+        actions.appendChild(btnUn);
+      }
+    } else {
+      box.className = base + 'bg-amber-50 border-amber-200';
+      text.innerHTML = '⏳ <b>ยังไม่ได้บันทึกว่าส่งฝ่ายการเงิน</b> — เดือน ' + monthName + ' พ.ศ. ' + yearBE;
+      if (canManage) {
+        var hasBudget = _lastSummary && Number(_lastSummary.budget) > 0;
+        if (!hasBudget) {
+          text.innerHTML += '<div class="text-xs text-slate-500 mt-1">ต้องบันทึกจำนวนเงินที่จัดสรรลงกลุ่มก่อน จึงจะบันทึกการส่งได้</div>';
+        }
+        var btnMark = document.createElement('button');
+        btnMark.className = 'bg-teal-700 hover:bg-teal-800 text-white text-sm rounded-lg px-3 py-1.5' + (hasBudget ? '' : ' opacity-50 cursor-not-allowed');
+        btnMark.disabled = !hasBudget;
+        btnMark.textContent = '✔️ บันทึกว่าส่งแล้ว';
+        btnMark.addEventListener('click', function() { toggleFinanceSubmission(true); });
+        actions.appendChild(btnMark);
+      } else {
+        actions.innerHTML = '<span class="text-xs text-slate-400">เฉพาะผู้ดูแลระบบ/หัวหน้ากลุ่มงานเท่านั้นที่บันทึกสถานะได้</span>';
+      }
+    }
+  }
+
+  function toggleFinanceSubmission(mark) {
+    var yearBE = document.getElementById('summaryYear').value;
+    var month = document.getElementById('summaryMonth').value;
+    var action = mark ? 'markFinanceSubmitted' : 'unmarkFinanceSubmitted';
+
+    showLoading(true);
+    callServer(action, APP.token, yearBE, month).then(function(res) {
+      showLoading(false);
+      if (!res.ok) { toast('error', res.message); return; }
+      toast('success', res.message);
+      loadFinanceStatus();
+      loadFinanceHistory();
+    }).catch(function(err) { showLoading(false); fireError(err); });
+  }
+
+  function renderFinanceHistory(list) {
+    var grid = document.getElementById('finHistoryGrid');
+    grid.innerHTML = '';
+    list.forEach(function(m) {
+      var card = document.createElement('div');
+      card.className = 'rounded-lg p-3 border text-center ' + (m.submitted ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200');
+      card.innerHTML =
+        '<div class="text-xs text-slate-500">' + m.monthName + ' ' + m.yearBE + '</div>' +
+        '<div class="text-lg mt-1">' + (m.submitted ? '✅' : '❌') + '</div>' +
+        '<div class="text-[11px] mt-0.5 ' + (m.submitted ? 'text-emerald-600' : 'text-rose-500') + '">' + (m.submitted ? 'ส่งแล้ว' : 'ยังไม่ส่ง') + '</div>';
+      grid.appendChild(card);
+    });
+  }
+
+  function formatDateTimeTH_(iso) {
+    if (!iso) return '-';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '-';
+    var yearBE = d.getFullYear() + 543;
+    var dd = String(d.getDate()).padStart(2, '0');
+    var mm = String(d.getMonth() + 1).padStart(2, '0');
+    var hh = String(d.getHours()).padStart(2, '0');
+    var mi = String(d.getMinutes()).padStart(2, '0');
+    return dd + '/' + mm + '/' + yearBE + ' ' + hh + ':' + mi + ' น.';
+  }
+
   function saveBudget() {
     var yearBE = document.getElementById('summaryYear').value;
     var month = document.getElementById('summaryMonth').value;
@@ -123,6 +235,7 @@
     }).then(function() {
       showLoading(false);
       toast('success', 'บันทึกงบประมาณเรียบร้อยแล้ว');
+      loadFinanceStatus();
     }).catch(function(err) {
       showLoading(false);
       fireError(err);
