@@ -249,8 +249,8 @@
     s.staff.forEach(function(r, i) {
       rows += '<tr>' +
         '<td>' + (i + 1) + '</td>' +
-        '<td style="text-align:left">' + r.fullName + '</td>' +
-        '<td>' + (r.position || '') + '</td>' +
+        '<td style="text-align:left;white-space:nowrap">' + r.fullName + '</td>' +
+        '<td style="white-space:nowrap">' + (r.position || '') + '</td>' +
         '<td>' + numFmt(r.minGuarantee, 2) + '</td>' +
         '<td>' + numFmt(r.specialAdminPoints, 2) + '</td>' +
         '<td>' + numFmt(r.adminAcademicPoints, 2) + '</td>' +
@@ -266,7 +266,8 @@
       '<div style="text-align:center;font-weight:700;font-size:15px;">แบบฟอร์มสรุปการจ่ายเงินตามผลการปฏิบัติงาน (P4P) ประจำเดือน ' + s.monthName + ' พ.ศ. ' + s.yearBE + '</div>' +
       '<div style="text-align:center;margin-bottom:4px;">หน่วยงาน.........กลุ่มงานสังคมสงเคราะห์........กลุ่มภารกิจด้านบริการทุติยภูมิและตติยภูมิ...จำนวนเงินที่จัดสรรลงกลุ่ม ' + numFmt(s.budget,2) + ' บาท</div>' +
       '<div style="text-align:center;margin-bottom:8px;">รวมส่วนเกินของแต้มทั้งหมด ' + numFmt(s.totalSurplus,2) + ' แต้ม &nbsp;&nbsp; ค่าเฉลี่ยของเงิน/1 แต้ม = ' + numFmt(s.rate,3) + ' บาท &nbsp;&nbsp; รวมจำนวนเงินที่ได้รับ ' + numFmt(s.totalAmount,2) + ' บาท</div>' +
-      '<table><thead>' +
+      '<table style="table-layout:auto;width:100%;">' +
+      '<thead>' +
       '<tr>' +
         '<th rowspan="2">ลำดับ</th>' +
         '<th rowspan="2">ชื่อ-นามสกุล</th>' +
