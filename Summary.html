@@ -9,6 +9,15 @@
       <select id="summaryYear" class="border border-slate-300 rounded-lg px-2 py-1.5 text-sm"></select>
       <select id="summaryMonth" class="border border-slate-300 rounded-lg px-2 py-1.5 text-sm"></select>
       <button id="btnLoadSummary" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm rounded-lg px-3 py-1.5">แสดงข้อมูล</button>
+      <label class="text-xs text-slate-500 pl-1" for="summaryFontSize">ขนาดตัวอักษรที่พิมพ์</label>
+      <select id="summaryFontSize" class="border border-slate-300 rounded-lg px-2 py-1.5 text-sm" title="ปรับขนาดตัวอักษรในตารางที่พิมพ์">
+        <option value="9">เล็กมาก (9)</option>
+        <option value="10">เล็ก (10)</option>
+        <option value="11">ปกติ (11)</option>
+        <option value="12" selected>ใหญ่ (12)</option>
+        <option value="13">ใหญ่มาก (13)</option>
+        <option value="14">ใหญ่พิเศษ (14)</option>
+      </select>
       <button id="btnPrintSummary" class="bg-teal-700 hover:bg-teal-800 text-white text-sm rounded-lg px-3 py-1.5">🖨️ พิมพ์</button>
     </div>
   </div>
@@ -70,6 +79,13 @@
 
     document.getElementById('btnLoadSummary').addEventListener('click', loadSummary);
     document.getElementById('btnPrintSummary').addEventListener('click', printSummary);
+    try {
+      var savedFs = localStorage.getItem('p4pPrintFontSize');
+      if (savedFs) document.getElementById('summaryFontSize').value = savedFs;
+    } catch (e) {}
+    document.getElementById('summaryFontSize').addEventListener('change', function() {
+      try { localStorage.setItem('p4pPrintFontSize', this.value); } catch (e) {}
+    });
 
     var canEditBudget = (APP.user.role === 'admin' || APP.user.role === 'head');
     document.getElementById('summaryBudget').readOnly = !canEditBudget;
@@ -99,6 +115,17 @@
     });
   }
 
+  // รวมยอดของกลุ่มงาน (ปัดทศนิยม 2 ตำแหน่ง กันเศษจากการบวกทศนิยม)
+  function sumTotals_(staff) {
+    var keys = ['minGuarantee', 'specialAdminPoints', 'adminAcademicPoints', 'servicePoints', 'grandTotal', 'surplus', 'amount'];
+    var tot = {};
+    keys.forEach(function(k) {
+      var v = staff.reduce(function(a, x) { return a + (Number(x[k]) || 0); }, 0);
+      tot[k] = Math.round(v * 100) / 100;
+    });
+    return tot;
+  }
+
   function renderSummary(summary) {
     document.getElementById('summaryBudget').value = summary.budget;
     document.getElementById('summaryTotalSurplus').textContent = numFmt(summary.totalSurplus, 2);
@@ -122,6 +149,22 @@
         '<td class="px-2 py-2 text-center font-semibold text-teal-700">' + numFmt(r.amount, 2) + '</td>';
       tbody.appendChild(tr);
     });
+
+    if (summary.staff.length > 0) {
+      var tot = sumTotals_(summary.staff);
+      var trT = document.createElement('tr');
+      trT.className = 'bg-slate-100 font-semibold';
+      trT.innerHTML =
+        '<td class="px-2 py-2 text-center" colspan="3">รวม (' + summary.staff.length + ' คน)</td>' +
+        '<td class="px-2 py-2 text-center">' + numFmt(tot.minGuarantee, 2) + '</td>' +
+        '<td class="px-2 py-2 text-center">' + numFmt(tot.specialAdminPoints, 2) + '</td>' +
+        '<td class="px-2 py-2 text-center">' + numFmt(tot.adminAcademicPoints, 2) + '</td>' +
+        '<td class="px-2 py-2 text-center">' + numFmt(tot.servicePoints, 2) + '</td>' +
+        '<td class="px-2 py-2 text-center">' + numFmt(tot.grandTotal, 2) + '</td>' +
+        '<td class="px-2 py-2 text-center">' + numFmt(tot.surplus, 2) + '</td>' +
+        '<td class="px-2 py-2 text-center text-teal-700">' + numFmt(tot.amount, 2) + '</td>';
+      tbody.appendChild(trT);
+    }
   }
 
   function loadFinanceStatus() {
@@ -245,42 +288,66 @@
   function printSummary() {
     if (!_lastSummary) return;
     var s = _lastSummary;
+    var fs = Number(document.getElementById('summaryFontSize').value) || 12;   // ขนาดตัวอักษรเนื้อตาราง (px)
+    var hfs = fs + 1;                                                         // หัวตารางใหญ่กว่าเนื้อหา 1 ระดับ
+    var thStyle = 'background:#dbe4ee;color:#0f172a;font-weight:700;font-size:' + hfs + 'px;line-height:1.35;' +
+                  'padding:6px 5px;text-align:center;vertical-align:middle;white-space:nowrap;border:1px solid #000;-webkit-print-color-adjust:exact;print-color-adjust:exact;';
+    var thSub = thStyle.replace('#dbe4ee', '#eaf0f6');
     var rows = '';
     s.staff.forEach(function(r, i) {
       rows += '<tr>' +
         '<td>' + (i + 1) + '</td>' +
         '<td style="text-align:left;white-space:nowrap">' + r.fullName + '</td>' +
         '<td style="white-space:nowrap">' + (r.position || '') + '</td>' +
-        '<td>' + numFmt(r.minGuarantee, 2) + '</td>' +
-        '<td>' + numFmt(r.specialAdminPoints, 2) + '</td>' +
-        '<td>' + numFmt(r.adminAcademicPoints, 2) + '</td>' +
-        '<td>' + numFmt(r.servicePoints, 2) + '</td>' +
-        '<td>' + numFmt(r.grandTotal, 2) + '</td>' +
-        '<td>' + numFmt(r.surplus, 2) + '</td>' +
-        '<td>' + numFmt(r.amount, 2) + '</td>' +
-        '<td></td><td></td></tr>';
+        '<td class="num">' + numFmt(r.minGuarantee, 2) + '</td>' +
+        '<td class="num">' + numFmt(r.specialAdminPoints, 2) + '</td>' +
+        '<td class="num">' + numFmt(r.adminAcademicPoints, 2) + '</td>' +
+        '<td class="num">' + numFmt(r.servicePoints, 2) + '</td>' +
+        '<td class="num">' + numFmt(r.grandTotal, 2) + '</td>' +
+        '<td class="num">' + numFmt(r.surplus, 2) + '</td>' +
+        '<td class="num" style="font-weight:600">' + numFmt(r.amount, 2) + '</td>' +
+        '<td style="height:9mm"></td><td></td></tr>';
     });
+
+    var tot = sumTotals_(s.staff);
+    var tdT = 'style="background:#eaf0f6;font-weight:700;border-top:2px solid #000;-webkit-print-color-adjust:exact;print-color-adjust:exact;"';
+    rows += '<tr>' +
+      '<td colspan="3" ' + tdT + '>รวม</td>' +
+      '<td class="num" ' + tdT + '>' + numFmt(tot.minGuarantee, 2) + '</td>' +
+      '<td class="num" ' + tdT + '>' + numFmt(tot.specialAdminPoints, 2) + '</td>' +
+      '<td class="num" ' + tdT + '>' + numFmt(tot.adminAcademicPoints, 2) + '</td>' +
+      '<td class="num" ' + tdT + '>' + numFmt(tot.servicePoints, 2) + '</td>' +
+      '<td class="num" ' + tdT + '>' + numFmt(tot.grandTotal, 2) + '</td>' +
+      '<td class="num" ' + tdT + '>' + numFmt(tot.surplus, 2) + '</td>' +
+      '<td class="num" ' + tdT + '>' + numFmt(tot.amount, 2) + '</td>' +
+      '<td ' + tdT + '></td><td ' + tdT + '></td></tr>';
 
     var html =
       '<div class="print-doc" style="box-sizing:border-box;width:100%;padding:10mm 12mm 8mm 12mm;">' +
       '<div style="text-align:center;font-weight:700;font-size:15px;">แบบฟอร์มสรุปการจ่ายเงินตามผลการปฏิบัติงาน (P4P) ประจำเดือน ' + s.monthName + ' พ.ศ. ' + s.yearBE + '</div>' +
       '<div style="text-align:center;margin-bottom:4px;">หน่วยงาน.........กลุ่มงานสังคมสงเคราะห์........กลุ่มภารกิจด้านบริการทุติยภูมิและตติยภูมิ...จำนวนเงินที่จัดสรรลงกลุ่ม ' + numFmt(s.budget,2) + ' บาท</div>' +
       '<div style="text-align:center;margin-bottom:8px;">รวมส่วนเกินของแต้มทั้งหมด ' + numFmt(s.totalSurplus,2) + ' แต้ม &nbsp;&nbsp; ค่าเฉลี่ยของเงิน/1 แต้ม = ' + numFmt(s.rate,3) + ' บาท &nbsp;&nbsp; รวมจำนวนเงินที่ได้รับ ' + numFmt(s.totalAmount,2) + ' บาท</div>' +
-      '<table style="table-layout:auto;width:100%;">' +
+      '<style>.p4p-print td{font-size:' + fs + 'px;padding:5px 6px;text-align:center;vertical-align:middle;line-height:1.35;}' +
+      '.p4p-print td.num{white-space:nowrap;}</style>' +
+      '<table class="p4p-print" style="table-layout:auto;width:100%;border-collapse:collapse;">' +
       '<thead>' +
       '<tr>' +
-        '<th rowspan="2">ลำดับ</th>' +
-        '<th rowspan="2">ชื่อ-นามสกุล</th>' +
-        '<th rowspan="2">ตำแหน่ง</th>' +
-        '<th rowspan="2">แต้มประกันขั้นต่ำ</th>' +
-        '<th colspan="3">แต้มที่ได้</th>' +
-        '<th rowspan="2">รวมแต้มทั้งหมด</th>' +
-        '<th rowspan="2">ส่วนเกินของแต้ม</th>' +
-        '<th rowspan="2">จำนวนเงินที่ได้รับ</th>' +
-        '<th rowspan="2">ลายเซ็น</th>' +
-        '<th rowspan="2">หมายเหตุ</th>' +
+        '<th rowspan="2" style="' + thStyle + '">ลำดับ</th>' +
+        '<th rowspan="2" style="' + thStyle + '">ชื่อ-นามสกุล</th>' +
+        '<th rowspan="2" style="' + thStyle + '">ตำแหน่ง</th>' +
+        '<th rowspan="2" style="' + thStyle + '">แต้มประกัน<br>ขั้นต่ำ</th>' +
+        '<th colspan="3" style="' + thStyle + '">แต้มที่ได้</th>' +
+        '<th rowspan="2" style="' + thStyle + '">รวมแต้ม<br>ทั้งหมด</th>' +
+        '<th rowspan="2" style="' + thStyle + '">ส่วนเกิน<br>ของแต้ม</th>' +
+        '<th rowspan="2" style="' + thStyle + '">จำนวนเงิน<br>ที่ได้รับ</th>' +
+        '<th rowspan="2" style="' + thStyle + 'min-width:22mm;">ลายเซ็น</th>' +
+        '<th rowspan="2" style="' + thStyle + 'min-width:18mm;">หมายเหตุ</th>' +
       '</tr>' +
-      '<tr><th>แต้มพิเศษผู้บริหาร</th><th>แต้มบริหารและวิชาการ</th><th>แต้มบริการ</th></tr>' +
+      '<tr>' +
+        '<th style="' + thSub + '">แต้มพิเศษ<br>ผู้บริหาร</th>' +
+        '<th style="' + thSub + '">แต้มบริหาร<br>และวิชาการ</th>' +
+        '<th style="' + thSub + '">แต้มบริการ</th>' +
+      '</tr>' +
       '</thead><tbody>' + rows + '</tbody></table>' +
       '<div style="display:flex;justify-content:space-between;margin-top:50px;">' +
         '<div style="text-align:center;width:31%;">…………………………………<br>( นายสถาพร  อิ่มเอม )<br>นักสังคมสงเคราะห์ชำนาญการ</div>' +
